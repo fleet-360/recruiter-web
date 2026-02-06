@@ -104,6 +104,7 @@ export default function ProfilePage() {
                     width={128}
                     height={128}
                     className="w-full h-full object-cover"
+                    unoptimized
                   />
                 ) : (
                   <span className="text-gray-400 text-sm">Upload</span>

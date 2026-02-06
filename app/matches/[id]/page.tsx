@@ -80,6 +80,7 @@ export default function ChatPage() {
               width={40}
               height={40}
               className="rounded-full"
+              unoptimized
             />
           ) : (
             <div className="h-10 w-10 rounded-full bg-gray-700 flex items-center justify-center">

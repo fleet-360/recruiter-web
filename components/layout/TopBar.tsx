@@ -4,7 +4,19 @@ import { useAuth } from '@/contexts/AuthContext';
 import Image from 'next/image';
 
 export function TopBar() {
-  const { profile } = useAuth();
+  const { profile, loading } = useAuth();
+
+  // Prevent hydration mismatch by not rendering until profile is loaded
+  if (loading) {
+    return (
+      <div className="flex h-16 items-center justify-between border-b border-gray-800 bg-gray-900 px-6">
+        <div className="flex items-center">
+          <h2 className="text-lg font-semibold text-white">Loading...</h2>
+        </div>
+        <div className="h-8 w-8 rounded-full bg-gray-700 animate-pulse" />
+      </div>
+    );
+  }
 
   return (
     <div className="flex h-16 items-center justify-between border-b border-gray-800 bg-gray-900 px-6">
@@ -21,6 +33,8 @@ export function TopBar() {
             width={32}
             height={32}
             className="rounded-full"
+            unoptimized
+            priority={false}
           />
         ) : (
           <div className="h-8 w-8 rounded-full bg-gray-700 flex items-center justify-center">

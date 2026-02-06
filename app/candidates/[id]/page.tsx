@@ -67,6 +67,7 @@ export default function CandidateDetailPage() {
                 width={128}
                 height={128}
                 className="rounded-full"
+                unoptimized
               />
             ) : (
               <div className="h-32 w-32 rounded-full bg-gray-700 flex items-center justify-center">
@@ -115,6 +116,7 @@ export default function CandidateDetailPage() {
                     width={200}
                     height={200}
                     className="rounded-lg object-cover"
+                    unoptimized
                   />
                 ))}
               </div>

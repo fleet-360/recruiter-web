@@ -67,6 +67,7 @@ export default function CandidatesPage() {
                       width={64}
                       height={64}
                       className="rounded-full"
+                      unoptimized
                     />
                   ) : (
                     <div className="h-16 w-16 rounded-full bg-gray-700 flex items-center justify-center">

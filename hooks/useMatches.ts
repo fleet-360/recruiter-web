@@ -1,4 +1,4 @@
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
 import { Match, Job, Profile } from '@/types/database';
 import { useAuth } from '@/contexts/AuthContext';
