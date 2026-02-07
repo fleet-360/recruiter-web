@@ -3,6 +3,15 @@ export interface SocialLink {
   url: string;
 }
 
+export interface SubCompany {
+  id: string;
+  recruiter_id: string;
+  name: string;
+  logo_url: string | null;
+  created_at?: string;
+  updated_at?: string;
+}
+
 export interface Profile {
   id: string;
   role: 'candidate' | 'recruiter';
@@ -36,6 +45,8 @@ export interface Job {
   salary_range: string | null;
   job_pdf_url?: string | null;
   job_image_url?: string | null;
+  sub_company_id?: string | null; // Sub company ID (null means main company)
+  sub_company?: SubCompany | null; // Joined sub company data (optional, populated via JOIN)
   created_at?: string;
   updated_at?: string;
 }

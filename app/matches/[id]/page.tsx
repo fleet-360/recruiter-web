@@ -7,9 +7,10 @@ import { useParams, useRouter } from 'next/navigation';
 import { useState, useEffect, useRef } from 'react';
 import { Send, User, Briefcase } from 'lucide-react';
 import Image from 'next/image';
-import { format } from 'date-fns';
 import { useAuth } from '@/contexts/AuthContext';
 import { useRealtimeMessages } from '@/hooks/useRealtimeMessages';
+import { useUnreadMessages } from '@/hooks/useUnreadMessages';
+import { FormattedDate } from '@/components/ui/FormattedDate';
 
 export default function ChatPage() {
   const params = useParams();
@@ -20,10 +21,24 @@ export default function ChatPage() {
   const { data: messages, isLoading: messagesLoading } = useMessages(matchId);
   const sendMessage = useSendMessage();
   const [messageText, setMessageText] = useState('');
+  const [isMounted, setIsMounted] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   // Enable real-time updates
   useRealtimeMessages(matchId);
+
+  // Mark messages as read when opening the chat
+  const { markAsRead } = useUnreadMessages([matchId]);
+  
+  useEffect(() => {
+    if (matchId) {
+      markAsRead(matchId);
+    }
+  }, [matchId, markAsRead]);
+
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -60,7 +75,8 @@ export default function ChatPage() {
     );
   }
 
-  const isOwnMessage = (senderId: string) => senderId === user?.id;
+  // Only check if message is own after mount to prevent hydration mismatch
+  const isOwnMessage = (senderId: string) => isMounted && senderId === user?.id;
 
   return (
     <DashboardLayout>
@@ -114,7 +130,7 @@ export default function ChatPage() {
                   <p className={`mt-1 text-xs ${
                     isOwnMessage(message.sender_id) ? 'text-green-100' : 'text-gray-400'
                   }`}>
-                    {format(new Date(message.created_at), 'HH:mm')}
+                    <FormattedDate date={message.created_at} formatString="HH:mm" />
                   </p>
                 </div>
               </div>

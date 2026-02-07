@@ -2,12 +2,18 @@
 
 import { useAuth } from '@/contexts/AuthContext';
 import Image from 'next/image';
+import { useEffect, useState } from 'react';
 
 export function TopBar() {
   const { profile, loading } = useAuth();
+  const [isMounted, setIsMounted] = useState(false);
 
-  // Prevent hydration mismatch by not rendering until profile is loaded
-  if (loading) {
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
+
+  // Prevent hydration mismatch by showing consistent content during SSR
+  if (!isMounted || loading) {
     return (
       <div className="flex h-16 items-center justify-between border-b border-gray-800 bg-gray-900 px-6">
         <div className="flex items-center">

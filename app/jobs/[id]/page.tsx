@@ -2,6 +2,7 @@
 
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { useJob, useUpdateJob, useDeleteJob } from '@/hooks/useJobs';
+import { useSubCompanies } from '@/hooks/useSubCompanies';
 import { CitySelector, City } from '@/components/jobs/CitySelector';
 import { useRouter, useParams } from 'next/navigation';
 import { useState, useEffect } from 'react';
@@ -26,14 +27,16 @@ export default function EditJobPage() {
   const router = useRouter();
   const params = useParams();
   const jobId = params.id as string;
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
   const { data: job, isLoading } = useJob(jobId);
   const updateJob = useUpdateJob();
   const deleteJob = useDeleteJob();
+  const { data: subCompanies } = useSubCompanies();
   const [selectedCity, setSelectedCity] = useState<City | null>(null);
   const [jobPdfUrl, setJobPdfUrl] = useState<string>('');
   const [jobImageUrl, setJobImageUrl] = useState<string>('');
   const [uploading, setUploading] = useState(false);
+  const [selectedSubCompanyId, setSelectedSubCompanyId] = useState<string | null>(null);
 
   const {
     register,
@@ -115,10 +118,27 @@ export default function EditJobPage() {
 
   const onSubmit = async (data: JobFormData) => {
     try {
+      // Determine company name and sub_company_id
+      let finalCompanyName = data.company;
+      let finalSubCompanyId: string | null = null;
+
+      if (selectedSubCompanyId) {
+        const selectedSubCompany = subCompanies?.find(sc => sc.id === selectedSubCompanyId);
+        if (selectedSubCompany) {
+          finalCompanyName = selectedSubCompany.name;
+          finalSubCompanyId = selectedSubCompany.id;
+        }
+      } else {
+        // Using main company
+        finalCompanyName = profile?.company_name || data.company;
+        finalSubCompanyId = null;
+      }
+
       await updateJob.mutateAsync({
         id: jobId,
         title: data.title,
-        company: data.company,
+        company: finalCompanyName,
+        sub_company_id: finalSubCompanyId,
         description: data.description,
         location: selectedCity ? selectedCity.display_name : (data.location || null),
         city_lat: selectedCity ? parseFloat(selectedCity.lat) : null,
@@ -126,7 +146,7 @@ export default function EditJobPage() {
         salary_range: data.salary_range || null,
         job_pdf_url: jobPdfUrl || null,
         job_image_url: jobImageUrl || null,
-      });
+      } as any);
       router.push('/jobs');
     } catch (error) {
       alert('Failed to update job');
@@ -191,12 +211,26 @@ export default function EditJobPage() {
 
             <div>
               <label className="block text-sm font-medium text-gray-300">Company *</label>
-              <input
-                {...register('company')}
+              <select
+                value={selectedSubCompanyId || ''}
+                onChange={(e) => {
+                  setSelectedSubCompanyId(e.target.value || null);
+                }}
                 className="mt-1 block w-full rounded-md border border-gray-600 bg-gray-700 px-3 py-2 text-white placeholder-gray-400 focus:border-green-500 focus:outline-none focus:ring-1 focus:ring-green-500"
-              />
-              {errors.company && (
-                <p className="mt-1 text-sm text-red-400">{errors.company.message}</p>
+              >
+                <option value="">Main Company ({profile?.company_name || 'Your Company'})</option>
+                {subCompanies?.map((sc) => (
+                  <option key={sc.id} value={sc.id}>
+                    {sc.name}
+                  </option>
+                ))}
+              </select>
+              {!selectedSubCompanyId && (
+                <input
+                  {...register('company', { required: false })}
+                  className="mt-2 block w-full rounded-md border border-gray-600 bg-gray-700 px-3 py-2 text-white placeholder-gray-400 focus:border-green-500 focus:outline-none focus:ring-1 focus:ring-green-500"
+                  placeholder="Company name (if different from main)"
+                />
               )}
             </div>
 

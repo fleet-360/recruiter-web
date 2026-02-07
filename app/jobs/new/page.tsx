@@ -2,6 +2,7 @@
 
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { useCreateJob } from '@/hooks/useJobs';
+import { useSubCompanies } from '@/hooks/useSubCompanies';
 import { CitySelector, City } from '@/components/jobs/CitySelector';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
@@ -14,7 +15,6 @@ import { useDropzone } from 'react-dropzone';
 
 const jobSchema = z.object({
   title: z.string().min(1, 'Title is required'),
-  company: z.string().min(1, 'Company is required'),
   description: z.string().min(1, 'Description is required'),
   location: z.string().optional(),
   salary_range: z.string().optional(),
@@ -24,12 +24,14 @@ type JobFormData = z.infer<typeof jobSchema>;
 
 export default function NewJobPage() {
   const router = useRouter();
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
   const createJob = useCreateJob();
+  const { data: subCompanies } = useSubCompanies();
   const [selectedCity, setSelectedCity] = useState<City | null>(null);
   const [jobPdfUrl, setJobPdfUrl] = useState<string>('');
   const [jobImageUrl, setJobImageUrl] = useState<string>('');
   const [uploading, setUploading] = useState(false);
+  const [selectedSubCompanyId, setSelectedSubCompanyId] = useState<string | null>(null);
 
   const {
     register,
@@ -40,56 +42,125 @@ export default function NewJobPage() {
   });
 
   const onDropPDF = async (acceptedFiles: File[]) => {
-    if (!user || acceptedFiles.length === 0) return;
+    console.log('onDropPDF called', { user: !!user, filesCount: acceptedFiles.length });
+    if (!user) {
+      alert('Please log in to upload files');
+      return;
+    }
+    if (acceptedFiles.length === 0) {
+      console.log('No files accepted');
+      return;
+    }
     setUploading(true);
     try {
+      console.log('Starting PDF upload...', acceptedFiles[0].name);
       const result = await uploadPDF(STORAGE_BUCKETS.JOB_DOCUMENTS, acceptedFiles[0], user.id);
+      console.log('Upload result:', result);
       if (result.url) {
         setJobPdfUrl(result.url);
       } else {
         alert(result.error?.message || 'Failed to upload PDF');
       }
     } catch (error) {
-      alert('Failed to upload PDF');
+      console.error('Upload error:', error);
+      alert('Failed to upload PDF: ' + (error instanceof Error ? error.message : 'Unknown error'));
     } finally {
       setUploading(false);
     }
   };
 
+  const onDropRejectedPDF = (fileRejections: any[]) => {
+    console.log('PDF rejected:', fileRejections);
+    const reasons = fileRejections.map(({ file, errors }) => ({
+      file: file.name,
+      errors: errors.map((e: any) => e.message),
+    }));
+    alert('File rejected: ' + JSON.stringify(reasons, null, 2));
+  };
+
   const { getRootProps: getPDFRootProps, getInputProps: getPDFInputProps } = useDropzone({
     onDrop: onDropPDF,
+    onDropRejected: onDropRejectedPDF,
     accept: { 'application/pdf': ['.pdf'] },
     maxFiles: 1,
   });
 
   const onDropImage = async (acceptedFiles: File[]) => {
-    if (!user || acceptedFiles.length === 0) return;
+    console.log('onDropImage called', { user: !!user, filesCount: acceptedFiles.length });
+    if (!user) {
+      alert('Please log in to upload files');
+      return;
+    }
+    if (acceptedFiles.length === 0) {
+      console.log('No files accepted');
+      return;
+    }
     setUploading(true);
     try {
+      console.log('Starting image upload...', acceptedFiles[0].name);
       const result = await uploadImage(STORAGE_BUCKETS.JOB_IMAGES, acceptedFiles[0], user.id);
+      console.log('Upload result:', result);
       if (result.url) {
         setJobImageUrl(result.url);
       } else {
         alert(result.error?.message || 'Failed to upload image');
       }
     } catch (error) {
-      alert('Failed to upload image');
+      console.error('Upload error:', error);
+      alert('Failed to upload image: ' + (error instanceof Error ? error.message : 'Unknown error'));
     } finally {
       setUploading(false);
     }
   };
 
+  const onDropRejectedImage = (fileRejections: any[]) => {
+    console.log('Image rejected:', fileRejections);
+    const reasons = fileRejections.map(({ file, errors }) => ({
+      file: file.name,
+      errors: errors.map((e: any) => e.message),
+    }));
+    alert('File rejected: ' + JSON.stringify(reasons, null, 2));
+  };
+
   const { getRootProps: getImageRootProps, getInputProps: getImageInputProps } = useDropzone({
     onDrop: onDropImage,
+    onDropRejected: onDropRejectedImage,
     accept: { 'image/*': ['.png', '.jpg', '.jpeg'] },
     maxFiles: 1,
   });
 
   const onSubmit = async (data: JobFormData) => {
+    console.log('onSubmit called', { data, selectedSubCompanyId, profile, subCompanies, errors });
+    if (Object.keys(errors).length > 0) {
+      console.error('Form validation errors:', errors);
+      return;
+    }
     try {
-      await createJob.mutateAsync({
+      // Determine company name and sub_company_id automatically
+      let finalCompanyName: string;
+      let finalSubCompanyId: string | null = null;
+
+      if (selectedSubCompanyId) {
+        const selectedSubCompany = subCompanies?.find(sc => sc.id === selectedSubCompanyId);
+        if (selectedSubCompany) {
+          finalCompanyName = selectedSubCompany.name;
+          finalSubCompanyId = selectedSubCompany.id;
+        } else {
+          throw new Error('Selected sub-company not found');
+        }
+      } else {
+        // Using main company
+        if (!profile?.company_name) {
+          throw new Error('Company name is required. Please set your company name in profile settings.');
+        }
+        finalCompanyName = profile.company_name;
+        finalSubCompanyId = null;
+      }
+
+      console.log('Creating job with data:', {
         title: data.title,
-        company: data.company,
+        company: finalCompanyName,
+        sub_company_id: finalSubCompanyId,
         description: data.description,
         location: selectedCity ? selectedCity.display_name : (data.location || null),
         city_lat: selectedCity ? parseFloat(selectedCity.lat) : null,
@@ -98,9 +169,25 @@ export default function NewJobPage() {
         job_pdf_url: jobPdfUrl || null,
         job_image_url: jobImageUrl || null,
       });
+
+      const result = await createJob.mutateAsync({
+        title: data.title,
+        company: finalCompanyName,
+        sub_company_id: finalSubCompanyId,
+        description: data.description,
+        location: selectedCity ? selectedCity.display_name : (data.location || null),
+        city_lat: selectedCity ? parseFloat(selectedCity.lat) : null,
+        city_lon: selectedCity ? parseFloat(selectedCity.lon) : null,
+        salary_range: data.salary_range || null,
+        job_pdf_url: jobPdfUrl || null,
+        job_image_url: jobImageUrl || null,
+      } as any);
+      
+      console.log('Job created successfully:', result);
       router.push('/jobs');
     } catch (error) {
-      alert('Failed to create job');
+      console.error('Error creating job:', error);
+      alert('Failed to create job: ' + (error instanceof Error ? error.message : 'Unknown error'));
     }
   };
 
@@ -127,15 +214,27 @@ export default function NewJobPage() {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-300">Company *</label>
-              <input
-                {...register('company')}
+              <label className="block text-sm font-medium text-gray-300">Company</label>
+              <select
+                value={selectedSubCompanyId || ''}
+                onChange={(e) => {
+                  setSelectedSubCompanyId(e.target.value || null);
+                }}
                 className="mt-1 block w-full rounded-md border border-gray-600 bg-gray-700 px-3 py-2 text-white placeholder-gray-400 focus:border-green-500 focus:outline-none focus:ring-1 focus:ring-green-500"
-                placeholder="Company name"
-              />
-              {errors.company && (
-                <p className="mt-1 text-sm text-red-400">{errors.company.message}</p>
-              )}
+              >
+                <option value="">Main Company ({profile?.company_name || 'Your Company'})</option>
+                {subCompanies?.map((sc) => (
+                  <option key={sc.id} value={sc.id}>
+                    {sc.name}
+                  </option>
+                ))}
+              </select>
+              <p className="mt-1 text-xs text-gray-400">
+                {selectedSubCompanyId 
+                  ? `Selected: ${subCompanies?.find(sc => sc.id === selectedSubCompanyId)?.name || 'Sub-company'}`
+                  : `Using: ${profile?.company_name || 'Your Company'}`
+                }
+              </p>
             </div>
 
             <div>
@@ -176,7 +275,9 @@ export default function NewJobPage() {
                 className="cursor-pointer rounded-md border-2 border-dashed border-gray-600 bg-gray-700 p-4 text-center hover:border-green-500 transition-colors"
               >
                 <input {...getPDFInputProps()} />
-                {jobPdfUrl ? (
+                {uploading ? (
+                  <p className="text-sm text-yellow-400">Uploading...</p>
+                ) : jobPdfUrl ? (
                   <p className="text-sm text-green-400">PDF uploaded: {jobPdfUrl.split('/').pop()}</p>
                 ) : (
                   <p className="text-sm text-gray-400">Drop PDF here or click to upload</p>
@@ -191,7 +292,9 @@ export default function NewJobPage() {
                 className="cursor-pointer rounded-md border-2 border-dashed border-gray-600 bg-gray-700 p-4 text-center hover:border-green-500 transition-colors"
               >
                 <input {...getImageInputProps()} />
-                {jobImageUrl ? (
+                {uploading ? (
+                  <p className="text-sm text-yellow-400">Uploading...</p>
+                ) : jobImageUrl ? (
                   <div className="space-y-2">
                     <img src={jobImageUrl} alt="Job" className="mx-auto h-32 w-auto rounded" />
                     <p className="text-sm text-green-400">Image uploaded</p>

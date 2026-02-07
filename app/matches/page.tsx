@@ -2,13 +2,23 @@
 
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { useMatches } from '@/hooks/useMatches';
+import { useUnreadMessages } from '@/hooks/useUnreadMessages';
 import { MessageSquare, User, Briefcase } from 'lucide-react';
 import Link from 'next/link';
 import Image from 'next/image';
-import { format } from 'date-fns';
+import { FormattedDate } from '@/components/ui/FormattedDate';
+import { useMemo } from 'react';
 
 export default function MatchesPage() {
   const { data: matches, isLoading } = useMatches();
+  
+  // Get match IDs for unread messages hook
+  const matchIds = useMemo(() => {
+    return matches?.map((match) => match.id) || [];
+  }, [matches]);
+
+  // Get unread counts for all matches
+  const { getUnreadCount } = useUnreadMessages(matchIds);
 
   return (
     <DashboardLayout>
@@ -56,12 +66,19 @@ export default function MatchesPage() {
                           </div>
                           {match.created_at && (
                             <span>
-                              Matched {format(new Date(match.created_at), 'MMM d, yyyy')}
+                              Matched <FormattedDate date={match.created_at} formatString="MMM d, yyyy" />
                             </span>
                           )}
                         </div>
                       </div>
-                      <MessageSquare className="h-5 w-5 text-green-400" />
+                      <div className="relative">
+                        <MessageSquare className="h-5 w-5 text-green-400" />
+                        {getUnreadCount(match.id) > 0 && (
+                          <span className="absolute -top-2 -right-2 flex min-w-[20px] h-5 items-center justify-center rounded-full bg-red-500 text-xs font-bold text-white px-1.5 shadow-lg animate-pulse">
+                            {getUnreadCount(match.id) > 99 ? '99+' : getUnreadCount(match.id)}
+                          </span>
+                        )}
+                      </div>
                     </div>
                   </div>
                 </div>

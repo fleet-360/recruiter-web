@@ -1,95 +1,89 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
-import { Job } from '@/types/database';
+import { SubCompany } from '@/types/database';
 import { useAuth } from '@/contexts/AuthContext';
 
-export function useJobs() {
+export function useSubCompanies() {
   const { user } = useAuth();
 
   return useQuery({
-    queryKey: ['jobs', user?.id],
+    queryKey: ['subCompanies', user?.id],
     queryFn: async () => {
       if (!user) throw new Error('User not authenticated');
 
       const { data, error } = await supabase
-        .from('jobs')
-        .select(`
-          *,
-          sub_company:sub_companies(*)
-        `)
+        .from('sub_companies')
+        .select('*')
         .eq('recruiter_id', user.id)
         .order('created_at', { ascending: false });
 
       if (error) throw error;
-      return data as Job[];
+      return data as SubCompany[];
     },
     enabled: !!user,
   });
 }
 
-export function useJob(jobId: string | null) {
+export function useSubCompany(subCompanyId: string | null) {
   const { user } = useAuth();
 
   return useQuery({
-    queryKey: ['job', jobId],
+    queryKey: ['subCompany', subCompanyId],
     queryFn: async () => {
-      if (!user || !jobId) throw new Error('Invalid parameters');
+      if (!user || !subCompanyId) throw new Error('Invalid parameters');
 
       const { data, error } = await supabase
-        .from('jobs')
-        .select(`
-          *,
-          sub_company:sub_companies(*)
-        `)
-        .eq('id', jobId)
+        .from('sub_companies')
+        .select('*')
+        .eq('id', subCompanyId)
         .eq('recruiter_id', user.id)
         .single();
 
       if (error) throw error;
-      return data as Job;
+      return data as SubCompany;
     },
-    enabled: !!user && !!jobId,
+    enabled: !!user && !!subCompanyId,
   });
 }
 
-export function useCreateJob() {
+export function useCreateSubCompany() {
   const queryClient = useQueryClient();
   const { user } = useAuth();
 
   return useMutation({
-    mutationFn: async (jobData: Omit<Job, 'id' | 'recruiter_id' | 'created_at' | 'updated_at'>) => {
+    mutationFn: async (subCompanyData: Omit<SubCompany, 'id' | 'recruiter_id' | 'created_at' | 'updated_at'>) => {
       if (!user) throw new Error('User not authenticated');
 
       const { data, error } = await supabase
-        .from('jobs')
+        .from('sub_companies')
         .insert({
-          ...jobData,
+          ...subCompanyData,
           recruiter_id: user.id,
         })
         .select()
         .single();
 
       if (error) throw error;
-      return data as Job;
+      return data as SubCompany;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['jobs', user?.id] });
+      queryClient.invalidateQueries({ queryKey: ['subCompanies', user?.id] });
     },
   });
 }
 
-export function useUpdateJob() {
+export function useUpdateSubCompany() {
   const queryClient = useQueryClient();
   const { user } = useAuth();
 
   return useMutation({
-    mutationFn: async ({ id, ...jobData }: Partial<Job> & { id: string }) => {
+    mutationFn: async ({ id, ...subCompanyData }: Partial<SubCompany> & { id: string }) => {
       if (!user) throw new Error('User not authenticated');
 
       const { data, error } = await supabase
-        .from('jobs')
+        .from('sub_companies')
         .update({
-          ...jobData,
+          ...subCompanyData,
           updated_at: new Date().toISOString(),
         })
         .eq('id', id)
@@ -98,32 +92,32 @@ export function useUpdateJob() {
         .single();
 
       if (error) throw error;
-      return data as Job;
+      return data as SubCompany;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['jobs', user?.id] });
+      queryClient.invalidateQueries({ queryKey: ['subCompanies', user?.id] });
     },
   });
 }
 
-export function useDeleteJob() {
+export function useDeleteSubCompany() {
   const queryClient = useQueryClient();
   const { user } = useAuth();
 
   return useMutation({
-    mutationFn: async (jobId: string) => {
+    mutationFn: async (subCompanyId: string) => {
       if (!user) throw new Error('User not authenticated');
 
       const { error } = await supabase
-        .from('jobs')
+        .from('sub_companies')
         .delete()
-        .eq('id', jobId)
+        .eq('id', subCompanyId)
         .eq('recruiter_id', user.id);
 
       if (error) throw error;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['jobs', user?.id] });
+      queryClient.invalidateQueries({ queryKey: ['subCompanies', user?.id] });
     },
   });
 }

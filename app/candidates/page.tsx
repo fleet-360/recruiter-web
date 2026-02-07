@@ -56,7 +56,7 @@ export default function CandidatesPage() {
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
             {filteredCandidates.map((candidate) => (
               <div
-                key={candidate.id}
+                key={candidate._uniqueKey || `${candidate.id}-${candidate.swipe_job_id}`}
                 className="rounded-lg bg-gray-800 p-6 hover:bg-gray-700 transition-colors"
               >
                 <div className="flex items-start gap-4">

@@ -6,6 +6,7 @@ export const STORAGE_BUCKETS = {
   PORTFOLIO: 'portfolio',
   JOB_DOCUMENTS: 'job-documents',
   JOB_IMAGES: 'job-images',
+  COMPANY_LOGOS: 'company-logos',
 } as const;
 
 export interface UploadResult {
@@ -20,25 +21,32 @@ export async function uploadFile(
   userId: string
 ): Promise<UploadResult> {
   try {
+    console.log('uploadFile called', { bucket, fileName: file.name, path, userId, fileSize: file.size, fileType: file.type });
     const fileExt = file.name.split('.').pop();
     const fileName = `${userId}/${Date.now()}.${fileExt}`;
     const filePath = path ? `${path}/${fileName}` : fileName;
 
-    const { error: uploadError } = await supabase.storage
+    console.log('Uploading to path:', filePath);
+    const { error: uploadError, data: uploadData } = await supabase.storage
       .from(bucket)
       .upload(filePath, file, {
         cacheControl: '3600',
         upsert: false,
       });
 
+    console.log('Upload response:', { uploadError, uploadData });
+
     if (uploadError) {
+      console.error('Upload error:', uploadError);
       return { url: null, error: uploadError };
     }
 
     const { data } = supabase.storage.from(bucket).getPublicUrl(filePath);
+    console.log('Public URL:', data.publicUrl);
 
     return { url: data.publicUrl, error: null };
   } catch (error) {
+    console.error('Upload exception:', error);
     return {
       url: null,
       error: error instanceof Error ? error : new Error('Upload failed'),

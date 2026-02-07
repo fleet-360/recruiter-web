@@ -51,7 +51,7 @@ export function useCandidates() {
 
       if (validSwipes.length === 0) return [];
 
-      // Get unique candidate IDs
+      // Get unique candidate IDs to fetch their profiles
       const candidateIds = [...new Set(validSwipes.map((s) => s.candidate_id).filter(Boolean))];
 
       // Fetch candidate profiles
@@ -63,17 +63,24 @@ export function useCandidates() {
 
       if (candidatesError) throw candidatesError;
 
-      // Add job_id and swipe_date to each candidate
-      const candidatesWithSwipeInfo = (candidates || []).map((candidate) => {
-        const swipe = validSwipes.find((s) => s.candidate_id === candidate.id);
-        return {
-          ...candidate,
-          swipe_job_id: swipe?.job_id,
-          swipe_date: swipe?.created_at,
-        };
-      });
+      // Create one entry per (candidate, job) combination
+      // This way, if a candidate swiped on multiple jobs, they appear multiple times
+      const candidatesWithSwipeInfo = validSwipes
+        .map((swipe) => {
+          const candidate = candidates?.find((c) => c.id === swipe.candidate_id);
+          if (!candidate) return null;
+          
+          return {
+            ...candidate,
+            swipe_job_id: swipe.job_id,
+            swipe_date: swipe.created_at,
+            // Add a unique key combining candidate_id and job_id for React rendering
+            _uniqueKey: `${candidate.id}-${swipe.job_id}`,
+          };
+        })
+        .filter(Boolean) as (Profile & { swipe_job_id?: string; swipe_date?: string; _uniqueKey?: string })[];
 
-      return candidatesWithSwipeInfo as (Profile & { swipe_job_id?: string; swipe_date?: string })[];
+      return candidatesWithSwipeInfo;
     },
     enabled: !!user,
   });

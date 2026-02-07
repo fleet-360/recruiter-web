@@ -67,7 +67,7 @@ export default function JobsPage() {
                 <div className="flex items-start justify-between">
                   <div className="flex-1">
                     <h3 className="text-lg font-semibold text-white">{job.title}</h3>
-                    <p className="mt-1 text-sm text-gray-400">{job.company}</p>
+                    <p className="mt-1 text-sm text-gray-400">{(job.sub_company as any)?.name || job.company}</p>
                     {job.location && (
                       <p className="mt-2 text-sm text-gray-500">{job.location}</p>
                     )}

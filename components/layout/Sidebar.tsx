@@ -11,6 +11,7 @@ import {
   LogOut,
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
+import { useEffect, useState } from 'react';
 
 const navigation = [
   { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
@@ -23,6 +24,11 @@ const navigation = [
 export function Sidebar() {
   const pathname = usePathname();
   const { signOut } = useAuth();
+  const [isMounted, setIsMounted] = useState(false);
+
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
 
   return (
     <div className="flex h-screen w-64 flex-col bg-gray-900 border-r border-gray-800">
@@ -31,7 +37,8 @@ export function Sidebar() {
       </div>
       <nav className="flex-1 space-y-1 px-3 py-4">
         {navigation.map((item) => {
-          const isActive = pathname === item.href || pathname?.startsWith(item.href + '/');
+          // Only check active state after mount to prevent hydration mismatch
+          const isActive = isMounted && (pathname === item.href || pathname?.startsWith(item.href + '/'));
           return (
             <Link
               key={item.name}
