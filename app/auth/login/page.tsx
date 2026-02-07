@@ -1,9 +1,23 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import Link from 'next/link';
+
+function ErrorMessage() {
+  const searchParams = useSearchParams();
+  const errorParam = searchParams.get('error');
+  
+  if (errorParam === 'not_recruiter') {
+    return (
+      <div className="rounded-md bg-red-900/50 p-3 text-sm text-red-200">
+        Only recruiters can access this dashboard
+      </div>
+    );
+  }
+  return null;
+}
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
@@ -11,8 +25,6 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();
-  const searchParams = useSearchParams();
-  const errorParam = searchParams.get('error');
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -88,11 +100,9 @@ export default function LoginPage() {
           </p>
         </div>
         <form className="mt-8 space-y-6" onSubmit={handleLogin}>
-          {errorParam === 'not_recruiter' && (
-            <div className="rounded-md bg-red-900/50 p-3 text-sm text-red-200">
-              Only recruiters can access this dashboard
-            </div>
-          )}
+          <Suspense fallback={null}>
+            <ErrorMessage />
+          </Suspense>
           {error && (
             <div className="rounded-md bg-red-900/50 p-3 text-sm text-red-200">
               {error}
